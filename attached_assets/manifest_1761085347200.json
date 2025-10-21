@@ -1,0 +1,22 @@
+{
+    "name": "Plan de Pasantía Interactivo",
+    "short_name": "Plan Pasantía",
+    "description": "Tu planificador de pasantía interactivo para alcanzar tus metas profesionales.",
+    "start_url": "index.html",
+    "display": "standalone",
+    "background_color": "#FDFBF8",
+    "theme_color": "#E8A87C",
+    "icons": [
+        {
+            "src": "icono-192.png",
+            "type": "image/png",
+            "sizes": "192x192"
+        },
+        {
+            "src": "icono-512.png",
+            "type": "image/png",
+            "sizes": "512x512"
+        }
+    ]
+}
+

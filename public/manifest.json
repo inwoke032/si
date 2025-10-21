@@ -1,0 +1,26 @@
+{
+  "name": "Plan de Pasantía Interactivo",
+  "short_name": "Plan Pasantía",
+  "description": "Tu planificador PWA para alcanzar tus metas profesionales en IA con calendario, roadmap y seguimiento de progreso",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#FDFBF8",
+  "theme_color": "#E8A87C",
+  "orientation": "portrait-primary",
+  "categories": ["productivity", "education"],
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ]
+}

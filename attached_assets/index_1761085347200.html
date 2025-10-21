@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plan de Pasantía Interactivo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#E8A87C">
+    
+    <!-- Chosen Palette: Tierra Suave -->
+    <!-- Application Structure Plan: Se ha diseñado una SPA con cuatro vistas para una experiencia de usuario completa: 1) 'Resumen Mensual' para la visión estratégica. 2) 'Roadmap de Estudio' para una guía de aprendizaje detallada. 3) 'Calendario' para la navegación temporal. 4) 'Mi Día a Día' para la ejecución de tareas diarias. Esta estructura modular permite al usuario acceder a diferentes niveles de información (visión general, plan de estudio, navegación y detalle diario) de forma intuitiva. -->
+    <!-- Visualization & Content Choices: 
+        - Tooltips en Horario: (Reporte -> Necesidad de detalle en tareas) -> (Meta: Clarificar cada actividad) -> (Viz: Pop-up al hacer hover) -> (Interacción: Hover sobre un item del horario) -> (Justificación: Provee contexto sin saturar la UI, mejorando la usabilidad) -> (Método: HTML/CSS/JS).
+        - Roadmap de Estudio: (Reporte -> Plan de estudio detallado) -> (Meta: Organizar y presentar el currículum de estudio) -> (Viz: Acordeón o tarjetas colapsables) -> (Interacción: Click para expandir/colapsar secciones) -> (Justificación: Organiza una gran cantidad de texto de forma estructurada y digerible) -> (Método: HTML/Tailwind/JS).
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FDFBF8;
+            color: #4A4A4A;
+        }
+        .nav-active {
+            background-color: #E8A87C;
+            color: #FFFFFF;
+        }
+        .nav-inactive {
+            background-color: #F3E9E2;
+            color: #C38D9E;
+        }
+        .calendar-day:hover {
+            background-color: #F3E9E2;
+            cursor: pointer;
+        }
+        .today {
+            background-color: #E8A87C;
+            color: white;
+            border-radius: 50%;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        .tooltip {
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .has-tooltip:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-[#C38D9E]">Plan de Pasantía en IA</h1>
+            <p class="text-lg text-gray-600 mt-2">Tu hoja de ruta interactiva hacia el éxito profesional.</p>
+        </header>
+
+        <nav class="flex justify-center items-center bg-white p-2 rounded-full shadow-md mb-8 max-w-xl mx-auto flex-wrap">
+            <button id="nav-resumen" class="nav-btn nav-active text-sm md:text-base font-medium py-2 px-4 rounded-full transition-colors duration-300">Resumen Mensual</button>
+            <button id="nav-roadmap" class="nav-btn nav-inactive text-sm md:text-base font-medium py-2 px-4 rounded-full transition-colors duration-300">Roadmap</button>
+            <button id="nav-calendario" class="nav-btn nav-inactive text-sm md:text-base font-medium py-2 px-4 rounded-full transition-colors duration-300">Calendario</button>
+            <button id="nav-dia" class="nav-btn nav-inactive text-sm md:text-base font-medium py-2 px-4 rounded-full transition-colors duration-300">Mi Día a Día</button>
+        </nav>
+
+        <main>
+            <div id="resumen-view" class="view">
+                 <div class="bg-white p-6 rounded-2xl shadow-md mb-8">
+                     <h2 class="text-2xl font-semibold text-[#C38D9E] mb-4">Hoja de Ruta de 12 Meses</h2>
+                     <p class="text-gray-600 mb-6">Esta es tu trayectoria de aprendizaje y desarrollo. Cada fase se construye sobre la anterior, llevándote desde los fundamentos técnicos hasta la búsqueda activa de tu pasantía.</p>
+                     <div id="timeline-container" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 text-center"></div>
+                </div>
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="bg-white p-6 rounded-2xl shadow-md">
+                        <h2 class="text-2xl font-semibold text-[#C38D9E] mb-4">Distribución del Tiempo Semanal</h2>
+                        <p class="text-gray-600 mb-6">Este gráfico visualiza cómo se distribuyen tus horas cada semana entre las áreas clave de tu preparación.</p>
+                        <div class="chart-container">
+                            <canvas id="timeAllocationChart"></canvas>
+                        </div>
+                    </div>
+                    <div id="focus-container" class="bg-white p-6 rounded-2xl shadow-md flex flex-col justify-center">
+                    </div>
+                </div>
+            </div>
+
+            <div id="roadmap-view" class="view hidden">
+                <div class="bg-white p-6 rounded-2xl shadow-md">
+                    <h2 class="text-3xl font-bold text-[#C38D9E] mb-4 text-center">Roadmap de Estudio en IA</h2>
+                    <p class="text-gray-600 mb-8 text-center max-w-3xl mx-auto">Esta es tu guía de estudio detallada. Se basa en tres pilares fundamentales: Matemáticas, Programación y Teoría de IA. Utiliza esta sección para profundizar en cada tema y seguir la ruta de aprendizaje sugerida.</p>
+                    
+                    <div class="space-y-6" id="roadmap-container">
+                    </div>
+                </div>
+            </div>
+
+            <div id="calendario-view" class="view hidden">
+                <div class="bg-white p-6 rounded-2xl shadow-md">
+                    <div id="calendar-header" class="flex items-center justify-between mb-4">
+                        <button id="prev-month" class="p-2 rounded-full hover:bg-gray-100 transition">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                        </button>
+                        <h2 id="month-year" class="text-2xl font-semibold text-[#C38D9E]"></h2>
+                        <button id="next-month" class="p-2 rounded-full hover:bg-gray-100 transition">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                        </button>
+                    </div>
+                    <p class="text-gray-600 mb-6 text-center">Navega por los meses y haz clic en un día para ver el horario detallado en la vista "Mi Día a Día".</p>
+                    <div id="calendar-grid" class="grid grid-cols-7 gap-2 text-center"></div>
+                </div>
+            </div>
+
+            <div id="dia-view" class="view hidden">
+                <div class="bg-white p-6 rounded-2xl shadow-md">
+                    <div class="flex items-center justify-between mb-4">
+                        <button id="prev-day" class="p-2 rounded-full hover:bg-gray-100 transition">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                        </button>
+                        <h2 id="current-date-title" class="text-2xl font-semibold text-[#C38D9E]"></h2>
+                        <button id="next-day" class="p-2 rounded-full hover:bg-gray-100 transition">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                        </button>
+                    </div>
+                    <p class="text-gray-600 mb-6 text-center">Este es tu plan de acción para hoy. Pasa el ratón sobre cada tarea para ver más detalles y recursos.</p>
+                    <div id="daily-schedule-container" class="space-y-3"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const START_DATE = new Date('2025-10-20T00:00:00');
+            const END_DATE = new Date('2026-10-19T23:59:59');
+
+            const state = {
+                currentView: 'resumen',
+                selectedDate: START_DATE,
+                calendarDate: new Date(START_DATE.getFullYear(), START_DATE.getMonth(), 1)
+            };
+            
+            const taskDetails = {
+                "Estudio Python": {
+                    "Fundamentos: Variables, Tipos de Datos": "Concéntrate en entender qué es una variable y los tipos de datos básicos como strings, integers y floats. Realiza ejercicios prácticos en Codecademy.",
+                    "Fundamentos: Listas, Diccionarios, Tuplas": "Aprende a manejar colecciones de datos. Practica cómo añadir, eliminar y acceder a elementos en listas y diccionarios.",
+                    "Fundamentos: Bucles (for, while) y Condicionales": "Domina la lógica de control. Escribe pequeños scripts que usen bucles para iterar sobre listas y condicionales (if/else) para tomar decisiones.",
+                    "Fundamentos: Funciones y Práctica": "Aprende a escribir tus propias funciones para reutilizar código. Recurso recomendado: Tutorial Interactivo de Codecademy 'Learn Python 3'.",
+                    "Pandas: Series, DataFrames y Lectura de CSV": "Entiende las dos estructuras de datos principales de Pandas. Practica cargar un archivo CSV en un DataFrame con `pd.read_csv`.",
+                    "Pandas: Selección de Datos con .loc[] e .iloc[]": "¡Crucial! Practica seleccionar filas y columnas específicas. `.loc` es para etiquetas, `.iloc` es para posiciones numéricas.",
+                    "Pandas: Filtrado de Datos y Condiciones": "Aplica filtros para encontrar datos que cumplan criterios. Ejemplo: `df[df['ventas'] > 1000]`.",
+                    "Pandas: Manejo de Datos Faltantes": "Aprende a identificar y manejar datos nulos usando `.isnull()`, `.dropna()` y `.fillna()`.",
+                    "Pandas: Agrupación de Datos con .groupby()": "Una de las herramientas más poderosas. Agrupa datos por categorías para realizar cálculos agregados como suma o media.",
+                    "Pandas: Combinar DataFrames (merge, concat)": "Aprende a unir diferentes tablas de datos. `merge` es similar a los JOINs de SQL.",
+                    "NumPy: Creación y Operaciones con Arrays": "Practica la creación de arrays con `np.array()`, `np.arange()`, y `np.zeros()`. Realiza operaciones matemáticas básicas.",
+                    "Matplotlib: Gráficos de Líneas y Barras": "Crea tus primeras visualizaciones. Aprende la estructura de `figure` y `axes` para personalizar tus gráficos.",
+                    "Seaborn: Histogramas y Boxplots": "Usa Seaborn para crear gráficos estadísticos más atractivos y con menos código.",
+                    "Seaborn: Heatmaps y Pairplots": "Visualiza correlaciones con mapas de calor y relaciones entre múltiples variables con `pairplot`.",
+                    "SQL: SELECT, FROM, WHERE y Agregaciones": "Practica los comandos básicos para extraer datos. Usa `COUNT()`, `SUM()`, `AVG()` para resumir información. Recurso: SQLBolt.",
+                    "SQL: GROUP BY, HAVING y JOINS": "Domina `GROUP BY` para agrupar datos y `JOIN` (especialmente INNER y LEFT) para combinar tablas.",
+                    "ML Clásico: Aprendizaje Supervisado vs No Supervisado": "Entiende la diferencia conceptual: datos etiquetados vs. no etiquetados. Recurso: Videos de StatQuest en YouTube.",
+                    "ML Clásico: Regresión vs Clasificación": "Diferencia entre predecir un número (regresión) y predecir una categoría (clasificación).",
+                    "ML Clásico: Regresión Lineal/Logística": "Comprende la idea básica detrás de estos dos algoritmos fundamentales con Scikit-Learn.",
+                    "ML Clásico: Árboles de Decisión y Random Forest": "Visualiza cómo un árbol de decisión toma decisiones y cómo Random Forest mejora su rendimiento.",
+                    "ML Clásico: Support Vector Machines (SVM)": "Entiende conceptualmente cómo las SVM encuentran el hiperplano óptimo para separar datos.",
+                    "ML Clásico: K-Nearest Neighbors (KNN)": "Aprende este sencillo pero potente algoritmo basado en la 'vecindad' de los datos.",
+                    "ML Clásico: Evaluación de Modelos": "Domina métricas como Accuracy, Precision, Recall, F1-Score y la matriz de confusión.",
+                    "Cloud: APIs de GCP (Vision, Natural Language)": "Explora para qué sirven las APIs pre-entrenadas de Google. Mira videos cortos que expliquen sus casos de uso.",
+                    "Deep Learning: ¿Qué es una Red Neuronal?": "Comprende los conceptos básicos: neurona, capa, función de activación.",
+                    "Deep Learning: TensorFlow/PyTorch (Setup)": "Elige un framework (TensorFlow con Keras es recomendado para empezar) e instala el entorno.",
+                    "Deep Learning: Construyendo tu Primera Red Neuronal": "Crea una red neuronal simple para un problema de clasificación con datos tabulares (ej. dataset Iris).",
+                    "Deep Learning: Redes Neuronales Convolucionales (CNN)": "Entiende la arquitectura básica de las CNNs, ideales para el análisis de imágenes.",
+                    "Deep Learning: Proyecto Clasificador de Imágenes": "Desarrolla un proyecto práctico como un clasificador de 'perros vs. gatos'.",
+                    "Deep Learning: Redes Neuronales Recurrentes (RNN)": "Comprende la base de las RNNs para procesar datos secuenciales como texto.",
+                    "Deep Learning: Proyecto Análisis de Sentimiento": "Aplica una RNN o LSTM para clasificar el sentimiento de reseñas de texto.",
+                    "Repaso y Aplicación en Proyectos": "Aplica todo lo aprendido en tus proyectos de GitHub. La práctica es la clave para consolidar el conocimiento."
+                },
+                "Estudio Anki": "Dedica este tiempo a repasar tus tarjetas de Anki. Concéntrate en conceptos de Python, SQL y Machine Learning para fortalecer tu memoria a largo plazo.",
+                "Contenido en Inglés (YouTube)": "Mira al menos 3 horas de contenido técnico en inglés. Canales recomendados: freeCodeCamp, Corey Schafer, StatQuest with Josh Starmer. Activa los subtítulos en inglés si es necesario.",
+                "Proyecto Python": "Trabaja en uno de tus 3 proyectos de portafolio en GitHub. Enfócate en la limpieza de datos, análisis exploratorio (EDA) o la implementación de un modelo.",
+                "Estudio Curso IA": "Dedica este bloque a tu curso de TalentoDigital.do. Revisa las clases, haz los ejercicios y prepara preguntas para la próxima sesión."
+            };
+
+            const pythonStudyPlan = [
+                // Mes 1-3: Fundamentos
+                "Fundamentos: Variables, Tipos de Datos", "Fundamentos: Listas, Diccionarios, Tuplas", "Fundamentos: Bucles (for, while) y Condicionales", "Fundamentos: Funciones y Práctica",
+                "Pandas: Series, DataFrames y Lectura de CSV", "Pandas: Selección de Datos con .loc[] e .iloc[]", "Pandas: Filtrado de Datos y Condiciones", "Pandas: Manejo de Datos Faltantes",
+                "Pandas: Agrupación de Datos con .groupby()", "Pandas: Combinar DataFrames (merge, concat)", "NumPy: Creación y Operaciones con Arrays", "Repaso y Aplicación en Proyectos",
+                // Mes 4-6: ML Clásico
+                "Matplotlib: Gráficos de Líneas y Barras", "Seaborn: Histogramas y Boxplots", "Seaborn: Heatmaps y Pairplots", "SQL: SELECT, FROM, WHERE y Agregaciones",
+                "SQL: GROUP BY, HAVING y JOINS", "ML Clásico: Aprendizaje Supervisado vs No Supervisado", "ML Clásico: Regresión vs Clasificación", "ML Clásico: Regresión Lineal/Logística",
+                "ML Clásico: Árboles de Decisión y Random Forest", "ML Clásico: Support Vector Machines (SVM)", "ML Clásico: K-Nearest Neighbors (KNN)", "ML Clásico: Evaluación de Modelos",
+                // Mes 7-9: Profundización
+                "Cloud: APIs de GCP (Vision, Natural Language)", "Repaso y Aplicación en Proyectos", "Deep Learning: ¿Qué es una Red Neuronal?", "Deep Learning: TensorFlow/PyTorch (Setup)",
+                "Deep Learning: Construyendo tu Primera Red Neuronal", "Repaso y Aplicación en Proyectos", "Deep Learning: Redes Neuronales Convolucionales (CNN)", "Repaso y Aplicación en Proyectos",
+                "Deep Learning: Proyecto Clasificador de Imágenes", "Repaso y Aplicación en Proyectos", "Deep Learning: Redes Neuronales Recurrentes (RNN)", "Repaso y Aplicación en Proyectos",
+                // Mes 10-12: Preparación
+                "Deep Learning: Proyecto Análisis de Sentimiento", "Repaso y Aplicación en Proyectos", "Repaso y Aplicación en Proyectos", "Repaso y Aplicación en Proyectos",
+                "Repaso y Aplicación en Proyectos", "Repaso y Aplicación en Proyectos", "Repaso y Aplicación en Proyectos", "Repaso y Aplicación en Proyectos",
+                "Repaso y Aplicación en Proyectos", "Repaso y Aplicación en Proyectos", "Repaso y Aplicación en Proyectos", "Repaso y Aplicación en Proyectos",
+                "Repaso y Aplicación en Proyectos", "Repaso y Aplicación en Proyectos", "Repaso y Aplicación en Proyectos", "Repaso y Aplicación en Proyectos",
+            ];
+
+            const weeklySchedule = {
+                0: [ // Domingo
+                    { time: '2:00 PM - 2:30 PM', task: 'Almuerzo / Empezar el día' },
+                    { time: '2:30 PM - 3:00 PM', task: 'Estudio Anki', focus: true },
+                    { time: '3:00 PM - 6:00 PM', task: 'Contenido en Inglés (YouTube)', focus: true },
+                    { time: '6:00 PM - 7:00 PM', task: 'Ver Series en Inglés' },
+                    { time: '7:00 PM - 9:30 PM', task: 'Tiempo Libre / Cena' },
+                    { time: '9:30 PM - 9:50 PM', task: 'Hablar con Amiga de Filipinas' },
+                    { time: '9:50 PM onwards', task: 'Tiempo Libre' }
+                ],
+                1: [ // Lunes
+                    { time: '6:00 AM - 6:40 AM', task: 'Música en Inglés (Estudio)' },
+                    { time: '6:40 AM - 7:20 AM', task: 'Traslado al Trabajo' },
+                    { time: '8:00 AM - 8:05 AM', task: 'Abrir Labs y Aires' },
+                    { time: '8:05 AM - 8:25 AM', task: 'Hablar con Amiga de Filipinas' },
+                    { time: '8:25 AM - 9:25 AM', task: 'Contenido en Inglés (YouTube)' },
+                    { time: '9:25 AM - 11:00 AM', task: 'Estudio Python', focus: true },
+                    { time: '11:00 AM - 12:00 PM', task: 'Contenido en Inglés (YouTube)' },
+                    { time: '12:00 PM - 1:00 PM', task: 'Almuerzo' },
+                    { time: '1:00 PM - 3:00 PM', task: 'Trabajo' },
+                    { time: '3:00 PM - 3:40 PM', task: 'Traslado a Casa' },
+                    { time: '3:40 PM - 4:40 PM', task: 'Contenido en Inglés (YouTube)' },
+                    { time: '4:40 PM - 5:10 PM', task: 'Estudio Anki', focus: true },
+                    { time: '5:10 PM - 6:10 PM', task: 'Ver Series en Inglés' },
+                    { time: '6:10 PM - 7:10 PM', task: 'Proyecto Python', focus: true },
+                    { time: '7:10 PM - 10:00 PM', task: 'Tiempo Libre' },
+                    { time: '10:00 PM - 11:00 PM', task: 'Prepararse para Dormir' }
+                ],
+                 2: [ // Martes
+                    { time: '6:00 AM - 6:40 AM', task: 'Música en Inglés (Estudio)' },
+                    { time: '6:40 AM - 7:20 AM', task: 'Traslado al Trabajo' },
+                    { time: '8:00 AM - 8:05 AM', task: 'Abrir Labs y Aires' },
+                    { time: '8:05 AM - 8:25 AM', task: 'Hablar con Amiga de Filipinas' },
+                    { time: '8:25 AM - 9:25 AM', task: 'Contenido en Inglés (YouTube)' },
+                    { time: '9:25 AM - 11:00 AM', task: 'Estudio Python', focus: true },
+                    { time: '11:00 AM - 12:00 PM', task: 'Contenido en Inglés (YouTube)' },
+                    { time: '12:00 PM - 1:00 PM', task: 'Almuerzo' },
+                    { time: '1:00 PM - 3:00 PM', task: 'Trabajo' },
+                    { time: '3:00 PM - 3:40 PM', task: 'Traslado a Casa' },
+                    { time: '3:40 PM - 4:40 PM', task: 'Contenido en Inglés (YouTube)' },
+                    { time: '4:40 PM - 5:10 PM', task: 'Estudio Anki', focus: true },
+                    { time: '5:10 PM - 6:10 PM', task: 'Ver Series en Inglés' },
+                    { time: '6:10 PM - 7:40 PM', task: 'Programar Servidor Haxball' },
+                    { time: '7:40 PM - 8:00 PM', task: 'Hablar con Amiga de Filipinas' },
+                    { time: '8:00 PM - 10:00 PM', task: 'Programar Servidor Haxball', focus: true },
+                    { time: '10:00 PM - 11:00 PM', task: 'Prepararse para Dormir' }
+                ],
+                3: [ // Miércoles
+                    { time: '6:00 AM - 6:40 AM', task: 'Música en Inglés (Estudio)' },
+                    { time: '6:40 AM - 7:20 AM', task: 'Traslado al Trabajo' },
+                    { time: '8:00 AM - 8:05 AM', task: 'Abrir Labs y Aires' },
+                    { time: '8:05 AM - 8:25 AM', task: 'Hablar con Amiga de Filipinas' },
+                    { time: '8:25 AM - 9:25 AM', task: 'Contenido en Inglés (YouTube)' },
+                    { time: '9:25 AM - 11:00 AM', task: 'Estudio Python', focus: true },
+                    { time: '11:00 AM - 12:00 PM', task: 'Contenido en Inglés (YouTube)' },
+                    { time: '12:00 PM - 1:00 PM', task: 'Almuerzo' },
+                    { time: '1:00 PM - 3:00 PM', task: 'Trabajo' },
+                    { time: '3:00 PM - 3:40 PM', task: 'Traslado a Casa' },
+                    { time: '3:40 PM - 4:40 PM', task: 'Contenido en Inglés (YouTube)' },
+                    { time: '4:40 PM - 5:10 PM', task: 'Estudio Anki', focus: true },
+                    { time: '5:10 PM - 6:10 PM', task: 'Ver Series en Inglés' },
+                    { time: '6:10 PM - 7:10 PM', task: 'Proyecto Python', focus: true },
+                    { time: '7:10 PM - 10:00 PM', task: 'Tiempo Libre' },
+                    { time: '10:00 PM - 11:00 PM', task: 'Prepararse para Dormir' }
+                ],
+                4: [ // Jueves
+                    { time: '6:00 AM - 6:40 AM', task: 'Música en Inglés (Estudio)' },
+                    { time: '6:40 AM - 7:20 AM', task: 'Traslado al Trabajo' },
+                    { time: '8:00 AM - 8:05 AM', task: 'Abrir Labs y Aires' },
+                    { time: '8:05 AM - 8:25 AM', task: 'Hablar con Amiga de Filipinas' },
+                    { time: '8:25 AM - 9:25 AM', task: 'Contenido en Inglés (YouTube)' },
+                    { time: '9:25 AM - 11:00 AM', task: 'Estudio Python', focus: true },
+                    { time: '11:00 AM - 12:00 PM', task: 'Contenido en Inglés (YouTube)' },
+                    { time: '12:00 PM - 1:00 PM', task: 'Almuerzo' },
+                    { time: '1:00 PM - 3:00 PM', task: 'Trabajo' },
+                    { time: '3:00 PM - 3:40 PM', task: 'Traslado a Casa' },
+                    { time: '3:40 PM - 4:40 PM', task: 'Contenido en Inglés (YouTube)' },
+                    { time: '4:40 PM - 5:10 PM', task: 'Estudio Anki', focus: true },
+                    { time: '5:10 PM - 6:10 PM', task: 'Ver Series en Español' },
+                    { time: '6:10 PM - 10:00 PM', task: 'Tiempo Libre' },
+                    { time: '10:00 PM - 11:00 PM', task: 'Prepararse para Dormir' }
+                ],
+                5: [ // Viernes
+                    { time: '6:00 AM - 6:40 AM', task: 'Música en Inglés (Estudio)' },
+                    { time: '6:40 AM - 7:20 AM', task: 'Traslado al Trabajo' },
+                    { time: '8:00 AM - 8:05 AM', task: 'Abrir Labs y Aires' },
+                    { time: '8:05 AM - 8:25 AM', task: 'Hablar con Amiga de Filipinas' },
+                    { time: '8:25 AM - 9:25 AM', task: 'Contenido en Inglés (YouTube)' },
+                    { time: '9:25 AM - 11:00 AM', task: 'Estudio Python', focus: true },
+                    { time: '11:00 AM - 12:00 PM', task: 'Contenido en Inglés (YouTube)' },
+                    { time: '12:00 PM - 1:00 PM', task: 'Almuerzo' },
+                    { time: '1:00 PM - 3:00 PM', task: 'Trabajo' },
+                    { time: '3:00 PM - 3:40 PM', task: 'Traslado a Casa' },
+                    { time: '3:40 PM - 4:40 PM', task: 'Contenido en Inglés (YouTube)' },
+                    { time: '4:40 PM - 5:10 PM', task: 'Estudio Anki', focus: true },
+                    { time: '5:10 PM - 6:10 PM', task: 'Ver Series en Inglés' },
+                    { time: '6:10 PM - 8:00 PM', task: 'Tiempo Libre' },
+                    { time: '8:00 PM - 10:00 PM', task: 'Liga de Haxball', focus: true },
+                    { time: '10:00 PM onwards', task: 'Tiempo Libre' }
+                ],
+                6: [ // Sábado
+                    { time: '2:00 PM - 2:30 PM', task: 'Almuerzo / Empezar el día' },
+                    { time: '2:30 PM - 4:30 PM', task: 'Estudio Curso IA', focus: true },
+                    { time: '4:30 PM - 5:30 PM', task: 'Proyecto Python', focus: true },
+                    { time: '5:30 PM - 7:30 PM', task: 'Contenido en Inglés (YouTube)' },
+                    { time: '7:30 PM - 8:30 PM', task: 'Ver Series en Inglés' },
+                    { time: '8:30 PM - 9:30 PM', task: 'Tiempo Libre / Cena' },
+                    { time: '9:30 PM - 9:50 PM', task: 'Hablar con Amiga de Filipinas' },
+                    { time: '9:50 PM - 11:50 PM', task: 'Canal de YouTube', focus: true },
+                    { time: '11:50 PM onwards', task: 'Tiempo Libre' }
+                ],
+            };
+            
+            const timeAllocationData = {
+                labels: ['Estudio Python', 'Proyectos', 'Inmersión Inglés', 'Haxball', 'YouTube', 'Estudio IA', 'Anki'],
+                datasets: [{
+                    label: 'Horas por Semana',
+                    data: [7.5, 3, 20, 5, 2, 2, 3.5],
+                    backgroundColor: ['#E8A87C', '#C38D9E', '#41B3A3', '#85DCB0', '#F38181', '#FCE38A', '#A2D5F2'],
+                    borderColor: '#FDFBF8',
+                    borderWidth: 4,
+                    hoverOffset: 10
+                }]
+            };
+
+            const roadmapData = [
+                {
+                    title: "Pilar 1: Las Matemáticas (La Base de Todo)",
+                    content: `
+                        <p class="mb-4">No necesitas un doctorado, pero sí una comprensión intuitiva y práctica de estos conceptos, ya que son el lenguaje en el que se construyen los modelos de IA.</p>
+                        <ul class="list-disc list-inside space-y-2">
+                            <li><strong>Álgebra Lineal:</strong> Es fundamental. La IA trata con datos que se representan como vectores y matrices (Vectores, matrices, producto punto, transformaciones).</li>
+                            <li><strong>Cálculo:</strong> Especialmente el cálculo diferencial (Derivadas, reglas de la cadena, gradientes). Es clave para entender cómo los modelos "aprenden".</li>
+                            <li><strong>Probabilidad y Estadística:</strong> Es el lenguaje de la incertidumbre (Probabilidad condicional, teorema de Bayes, distribuciones, media, varianza).</li>
+                        </ul>`
+                },
+                {
+                    title: "Pilar 2: La Programación (La Herramienta Principal)",
+                    content: `
+                        <p class="mb-4">Aquí es donde las ideas matemáticas se convierten en realidad. Python es el rey indiscutible en IA y Machine Learning.</p>
+                        <ul class="list-disc list-inside space-y-2">
+                            <li><strong>Python y Librerías Esenciales:</strong>
+                                <ul class="list-disc list-inside ml-6">
+                                    <li><strong>NumPy:</strong> Para operaciones matemáticas eficientes.</li>
+                                    <li><strong>Pandas:</strong> Para manipulación y análisis de datos.</li>
+                                    <li><strong>Matplotlib / Seaborn:</strong> Para visualización de datos.</li>
+                                    <li><strong>Scikit-Learn:</strong> La librería más importante para empezar, con algoritmos de ML listos para usar.</li>
+                                </ul>
+                            </li>
+                            <li><strong>SQL (Structured Query Language):</strong> Vital en el mundo real. Los datos residen en bases de datos y necesitas saber cómo extraerlos.</li>
+                        </ul>`
+                },
+                {
+                    title: "Pilar 3: Teoría de IA y Machine Learning (Los Conceptos)",
+                    content: `
+                        <p class="mb-4">Una vez que tienes las bases, debes entender los conceptos y algoritmos.</p>
+                        <ul class="list-disc list-inside space-y-2">
+                            <li><strong>Tipos de Aprendizaje Automático:</strong>
+                                <ul class="list-disc list-inside ml-6">
+                                    <li><strong>Supervisado:</strong> Enseñar con datos etiquetados (Regresión para predecir números, Clasificación para predecir categorías).</li>
+                                    <li><strong>No Supervisado:</strong> Encontrar patrones en datos no etiquetados (Clustering para agrupar datos similares).</li>
+                                </ul>
+                            </li>
+                            <li><strong>Modelos Fundamentales (con Scikit-Learn):</strong> Regresión Lineal/Logística, Árboles de Decisión, Random Forest, SVM.</li>
+                            <li><strong>Introducción a Redes Neuronales:</strong> Entender qué es una neurona, una capa y cómo se conectan. Empezar con TensorFlow o PyTorch después de dominar Scikit-Learn.</li>
+                        </ul>`
+                },
+                {
+                    title: "Ruta de Estudio Sugerida (6-12 meses)",
+                    content: `
+                        <div class="relative border-l-2 border-orange-200 ml-4">
+                            <div class="mb-8 ml-8">
+                                <span class="absolute flex items-center justify-center w-8 h-8 bg-orange-100 rounded-full -left-4 ring-4 ring-white">1-3</span>
+                                <h3 class="font-semibold text-lg text-gray-800">Meses 1-3: Fundamentos Sólidos</h3>
+                                <p class="text-gray-600">Aprende Python, domina NumPy y Pandas, y repasa conceptos de Álgebra Lineal y Estadística.</p>
+                            </div>
+                            <div class="mb-8 ml-8">
+                                <span class="absolute flex items-center justify-center w-8 h-8 bg-amber-100 rounded-full -left-4 ring-4 ring-white">4-6</span>
+                                <h3 class="font-semibold text-lg text-gray-800">Meses 4-6: Machine Learning Clásico</h3>
+                                <p class="text-gray-600">Sumérgete en Scikit-Learn, aplica los modelos fundamentales y completa tu primer proyecto de portafolio.</p>
+                            </div>
+                             <div class="mb-8 ml-8">
+                                <span class="absolute flex items-center justify-center w-8 h-8 bg-yellow-100 rounded-full -left-4 ring-4 ring-white">7-9</span>
+                                <h3 class="font-semibold text-lg text-gray-800">Meses 7-9: Profundización</h3>
+                                <p class="text-gray-600">Aprende SQL básico, empieza con Deep Learning (TensorFlow o PyTorch) y completa un segundo proyecto.</p>
+                            </div>
+                             <div class="ml-8">
+                                <span class="absolute flex items-center justify-center w-8 h-8 bg-lime-100 rounded-full -left-4 ring-4 ring-white">10+</span>
+                                <h3 class="font-semibold text-lg text-gray-800">Meses 10-12: Preparación para el Empleo</h3>
+                                <p class="text-gray-600">Pule tu portafolio en GitHub, optimiza tu LinkedIn y practica para entrevistas técnicas.</p>
+                            </div>
+                        </div>`
+                },
+            ];
+
+            const navButtons = document.querySelectorAll('.nav-btn');
+            const views = document.querySelectorAll('.view');
+            
+            const switchView = (viewId) => {
+                state.currentView = viewId;
+                views.forEach(view => view.classList.add('hidden'));
+                document.getElementById(`${viewId}-view`).classList.remove('hidden');
+
+                navButtons.forEach(btn => {
+                    btn.classList.remove('nav-active', 'nav-inactive');
+                    if (btn.id === `nav-${viewId}`) {
+                        btn.classList.add('nav-active');
+                    } else {
+                        btn.classList.add('nav-inactive');
+                    }
+                });
+            };
+
+            const renderTimeline = () => {
+                const timelineContainer = document.getElementById('timeline-container');
+                const monthlyFocusData = {
+                    '2025-9': { title: 'Octubre: Fundamentos', color: 'bg-orange-100', textColor: 'text-orange-800' },
+                    '2025-10': { title: 'Noviembre: Fundamentos', color: 'bg-orange-100', textColor: 'text-orange-800' },
+                    '2025-11': { title: 'Diciembre: Fundamentos', color: 'bg-orange-100', textColor: 'text-orange-800' },
+                    '2026-0': { title: 'Enero: ML Clásico', color: 'bg-amber-100', textColor: 'text-amber-800' },
+                    '2026-1': { title: 'Febrero: ML Clásico', color: 'bg-amber-100', textColor: 'text-amber-800' },
+                    '2026-2': { title: 'Marzo: ML Clásico', color: 'bg-amber-100', textColor: 'text-amber-800' },
+                    '2026-3': { title: 'Abril: Profundización', color: 'bg-yellow-100', textColor: 'text-yellow-800' },
+                    '2026-4': { title: 'Mayo: Profundización', color: 'bg-yellow-100', textColor: 'text-yellow-800' },
+                    '2026-5': { title: 'Junio: Profundización', color: 'bg-yellow-100', textColor: 'text-yellow-800' },
+                    '2026-6': { title: 'Julio: Preparación', color: 'bg-lime-100', textColor: 'text-lime-800' },
+                    '2026-7': { title: 'Agosto: Preparación', color: 'bg-lime-100', textColor: 'text-lime-800' },
+                    '2026-8': { title: 'Septiembre: Preparación', color: 'bg-lime-100', textColor: 'text-lime-800' },
+                };
+                timelineContainer.innerHTML = '';
+                Object.values(monthlyFocusData).forEach(month => {
+                    const div = document.createElement('div');
+                    div.className = `p-4 rounded-lg transition-transform transform hover:scale-105 ${month.color} ${month.textColor}`;
+                    div.innerHTML = `<h3 class="font-bold">${month.title.split(':')[0]}</h3>`;
+                    timelineContainer.appendChild(div);
+                });
+            };
+            
+            const renderFocus = (date) => {
+                 const focusContainer = document.getElementById('focus-container');
+                 const monthlyFocusData = {
+                     '2025-9': { title: 'Octubre: Inicio de la Cimentación', description: 'Enfócate en dominar los fundamentos de Python y Pandas. El objetivo es construir una base sólida para el análisis de datos. Comienza tu primer proyecto de portafolio para aplicar lo aprendido.'},
+                    '2025-10': { title: 'Noviembre: Profundización Técnica', description: 'Amplía tu arsenal técnico con NumPy, Matplotlib, Seaborn y SQL. La meta es poder manipular y visualizar datos desde cualquier fuente. Avanza en tus proyectos.'},
+                    '2025-11': { title: 'Diciembre: Consolidación y Proyectos', description: 'Sumérgete en los conceptos de Machine Learning y Cloud (GCP). El objetivo es entender el ciclo de vida de un modelo de IA. Finaliza tus proyectos clave.'},
+                    '2026-0': { title: 'Enero: Tu Marca Profesional', description: 'Es hora de mostrar tu valor. Optimiza tu perfil de LinkedIn, crea un CV de impacto y publica tus proyectos en GitHub. Tu presencia online es tu nuevo currículum.'},
+                    '2026-1': { title: 'Febrero: Búsqueda Activa', description: 'Comienza la búsqueda estratégica de pasantías. La meta no es aplicar a todo, sino enviar aplicaciones personalizadas y de alta calidad a empresas que te interesen.'},
+                    '2026-2': { title: 'Marzo: Intensificación y Networking', description: 'Aumenta el ritmo de aplicaciones y comienza a conectar con reclutadores en LinkedIn. Prepárate para las entrevistas: practica explicando tus proyectos con confianza.'},
+                    '2026-3': { title: 'Abril: Entrevistas y Seguimiento', description: 'Enfócate en brillar en las entrevistas. Investiga a las empresas, prepara tus respuestas y haz preguntas inteligentes. La perseverancia es clave en esta fase final.'},
+                    '2026-4': { title: 'Mayo: Profundización en Deep Learning', description: 'Comienza a estudiar los fundamentos de las redes neuronales. Elige un framework como TensorFlow o PyTorch y configura tu entorno.'},
+                    '2026-5': { title: 'Junio: Proyectos de Deep Learning', description: 'Aplica lo aprendido construyendo tus primeros modelos de Deep Learning, como un clasificador de imágenes (CNNs).'},
+                    '2026-6': { title: 'Julio: NLP y Modelos Secuenciales', description: 'Explora el Procesamiento del Lenguaje Natural (NLP) y las Redes Neuronales Recurrentes (RNNs) para analizar texto y secuencias.'},
+                    '2026-7': { title: 'Agosto: Pule tu Portafolio', description: 'Refina tus proyectos existentes, asegúrate de que la documentación sea excelente y añade tus nuevos proyectos de Deep Learning.'},
+                    '2026-8': { title: 'Septiembre: Práctica de Entrevistas y Búsqueda Avanzada', description: 'Practica activamente problemas de código (LeetCode) y preguntas conceptuales de IA. Expande tu búsqueda a roles más especializados.'},
+                    '2026-9': { title: 'Octubre: Networking y Aplicaciones Finales', description: 'Intensifica tu networking en eventos online y LinkedIn. Envía tus aplicaciones finales con un portafolio robusto y confianza en tus habilidades.'},
+                };
+                const key = `${date.getFullYear()}-${date.getMonth()}`;
+                const focus = monthlyFocusData[key];
+                if(focus) {
+                    focusContainer.innerHTML = `
+                        <h2 class="text-2xl font-semibold text-[#C38D9E] mb-4">${focus.title}</h2>
+                        <p class="text-gray-600">${focus.description}</p>`;
+                }
+            };
+
+            const renderRoadmap = () => {
+                const roadmapContainer = document.getElementById('roadmap-container');
+                roadmapContainer.innerHTML = '';
+                roadmapData.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'border border-gray-200 rounded-lg';
+                    div.innerHTML = `
+                        <details class="group p-4">
+                            <summary class="flex items-center justify-between cursor-pointer font-semibold text-lg text-[#C38D9E] group-open:text-orange-500">
+                                ${item.title}
+                                <svg class="w-5 h-5 transform transition-transform duration-300 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </summary>
+                            <div class="mt-4 text-gray-600">
+                                ${item.content}
+                            </div>
+                        </details>
+                    `;
+                    roadmapContainer.appendChild(div);
+                });
+            };
+            
+            const renderTimeChart = () => {
+                const ctx = document.getElementById('timeAllocationChart').getContext('2d');
+                if (window.myTimeChart instanceof Chart) window.myTimeChart.destroy();
+                Chart.defaults.font.family = "'Inter', sans-serif";
+                window.myTimeChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: timeAllocationData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '60%',
+                        plugins: {
+                            legend: { position: 'bottom', labels: { padding: 15, font: { size: 12 }}},
+                            tooltip: {
+                                callbacks: {
+                                    label: (c) => `${c.label}: ${c.parsed} hrs`
+                                }
+                            }
+                        }
+                    }
+                });
+            };
+
+            const renderCalendar = () => {
+                const calendarGridEl = document.getElementById('calendar-grid');
+                const monthYearEl = document.getElementById('month-year');
+                calendarGridEl.innerHTML = '';
+                const year = state.calendarDate.getFullYear();
+                const month = state.calendarDate.getMonth();
+                monthYearEl.textContent = state.calendarDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+
+                const firstDay = new Date(year, month, 1).getDay();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+                ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].forEach(day => {
+                    const headerEl = document.createElement('div');
+                    headerEl.className = 'font-semibold text-gray-500 text-sm';
+                    headerEl.textContent = day;
+                    calendarGridEl.appendChild(headerEl);
+                });
+
+                for (let i = 0; i < firstDay; i++) calendarGridEl.appendChild(document.createElement('div'));
+
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dayEl = document.createElement('div');
+                    const currentDate = new Date(year, month, day);
+                    if (currentDate >= START_DATE && currentDate <= END_DATE) {
+                        dayEl.className = 'calendar-day p-2 rounded-full transition-colors duration-200';
+                        dayEl.textContent = day;
+                        dayEl.dataset.date = currentDate.toISOString().split('T')[0];
+                        dayEl.addEventListener('click', (e) => {
+                            state.selectedDate = new Date(`${e.target.dataset.date}T00:00:00`);
+                            renderDailySchedule();
+                            switchView('dia');
+                        });
+                        const today = new Date();
+                        if (day === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
+                            dayEl.classList.add('today');
+                        }
+                    } else {
+                        dayEl.className = 'p-2 text-gray-300';
+                        dayEl.textContent = day;
+                    }
+                    calendarGridEl.appendChild(dayEl);
+                }
+            };
+            
+            const getPythonTopicForDate = (date) => {
+                const diffTime = Math.abs(date - START_DATE);
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                const weekNumber = Math.floor(diffDays / 7);
+                return pythonStudyPlan[weekNumber] || "Fase Final: Práctica Intensiva y Búsqueda Activa";
+            }
+
+            const renderDailySchedule = () => {
+                const dailyScheduleContainer = document.getElementById('daily-schedule-container');
+                const currentDateTitle = document.getElementById('current-date-title');
+                dailyScheduleContainer.innerHTML = '';
+                const dayOfWeek = state.selectedDate.getDay();
+                const schedule = JSON.parse(JSON.stringify(weeklySchedule[dayOfWeek]));
+                const pythonTopic = getPythonTopicForDate(state.selectedDate);
+                currentDateTitle.textContent = state.selectedDate.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+                schedule.forEach(item => {
+                    let taskKey = item.task;
+                    let taskDisplay = item.task;
+                    if (item.task === 'Estudio Python') {
+                        taskKey = pythonTopic;
+                        taskDisplay = `Estudio Python: ${pythonTopic}`;
+                    }
+                    
+                    const description = (taskDetails[item.task] && taskDetails[item.task][taskKey]) ? taskDetails[item.task][taskKey] : (taskDetails[item.task] || "No hay detalles adicionales para esta tarea.");
+
+                    const itemEl = document.createElement('div');
+                    itemEl.className = 'flex items-center p-3 rounded-lg has-tooltip relative';
+                    if (item.focus) {
+                        itemEl.classList.add('bg-orange-100', 'border-l-4', 'border-orange-400');
+                    } else {
+                        itemEl.classList.add('bg-gray-50');
+                    }
+                    itemEl.innerHTML = `
+                        <div class="w-1/3 text-sm font-semibold text-[#E8A87C]">${item.time}</div>
+                        <div class="w-2/3 text-gray-700">${taskDisplay}</div>
+                        <div class="tooltip absolute z-10 w-64 p-3 -mt-32 text-sm leading-tight text-white transform -translate-x-1/2 bg-black rounded-lg shadow-lg left-1/2">
+                            ${description}
+                        </div>`;
+                    dailyScheduleContainer.appendChild(itemEl);
+                });
+            };
+
+            document.getElementById('nav-resumen').addEventListener('click', () => switchView('resumen'));
+            document.getElementById('nav-roadmap').addEventListener('click', () => switchView('roadmap'));
+            document.getElementById('nav-calendario').addEventListener('click', () => switchView('calendario'));
+            document.getElementById('nav-dia').addEventListener('click', () => switchView('dia'));
+
+            document.getElementById('prev-month').addEventListener('click', () => {
+                state.calendarDate.setMonth(state.calendarDate.getMonth() - 1);
+                renderCalendar();
+            });
+            document.getElementById('next-month').addEventListener('click', () => {
+                state.calendarDate.setMonth(state.calendarDate.getMonth() + 1);
+                renderCalendar();
+            });
+            
+            document.getElementById('prev-day').addEventListener('click', () => {
+                const newDate = new Date(state.selectedDate);
+                newDate.setDate(newDate.getDate() - 1);
+                if (newDate >= START_DATE) {
+                    state.selectedDate = newDate;
+                    renderDailySchedule();
+                }
+            });
+            document.getElementById('next-day').addEventListener('click', () => {
+                const newDate = new Date(state.selectedDate);
+                newDate.setDate(newDate.getDate() + 1);
+                if (newDate <= END_DATE) {
+                    state.selectedDate = newDate;
+                    renderDailySchedule();
+                }
+            });
+
+            const init = () => {
+                renderTimeline();
+                renderFocus(state.selectedDate);
+                renderRoadmap();
+                renderTimeChart();
+                renderCalendar();
+                renderDailySchedule();
+                switchView('resumen');
+            };
+
+            init();
+        });
+    </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker registrado.', reg))
+                    .catch(err => console.log('Error al registrar Service Worker:', err));
+            });
+        }
+    </script>
+</body>
+</html>
+
